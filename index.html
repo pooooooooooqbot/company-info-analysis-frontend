@@ -1,0 +1,1931 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>港股公司分析看板</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --bg: linear-gradient(125deg, #f8fafc 0%, #e9f5ff 45%, #f4f9f1 100%);
+      --card: rgba(255, 255, 255, 0.82);
+      --line: rgba(15, 23, 42, 0.1);
+      --title: #0f172a;
+      --muted: #475569;
+      --accent: #0ea5a4;
+      --accent-2: #2563eb;
+      --accent-3: #ea580c;
+      --danger: #b91c1c;
+      --radius: 16px;
+      --shadow: 0 14px 36px rgba(2, 8, 23, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Noto Sans SC", "Space Grotesk", sans-serif;
+      background: var(--bg);
+      color: var(--title);
+      min-height: 100vh;
+    }
+
+    .shell {
+      width: min(1240px, 96vw);
+      margin: 24px auto 40px;
+    }
+
+    .hero {
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #f8fafc;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -60px;
+      top: -40px;
+      width: 260px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.46) 0%, rgba(56, 189, 248, 0) 72%);
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(22px, 2.4vw, 30px);
+      letter-spacing: 0.3px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero p {
+      margin: 10px 0 0;
+      color: rgba(226, 232, 240, 0.9);
+      font-size: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .query-panel {
+      position: relative;
+      margin-top: 14px;
+      border: 1px solid rgba(226, 232, 240, 0.24);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.5);
+      z-index: 2;
+    }
+
+    .selected-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 32px;
+      margin-bottom: 10px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.18);
+      color: #f8fafc;
+      font-size: 12px;
+      line-height: 1;
+      max-width: 100%;
+    }
+
+    .tag-code {
+      color: rgba(224, 242, 254, 0.95);
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.2px;
+    }
+
+    .tag-remove {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: rgba(248, 250, 252, 0.9);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    .search-input {
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.42);
+      background: rgba(255, 255, 255, 0.96);
+      color: #0f172a;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: #22d3ee;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22);
+    }
+
+    .analyze-btn {
+      appearance: none;
+      border: 1px solid rgba(14, 165, 164, 0.5);
+      background: linear-gradient(130deg, #0ea5a4, #2563eb);
+      color: #fff;
+      border-radius: 10px;
+      padding: 0 16px;
+      min-height: 42px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    .analyze-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .suggest-list {
+      list-style: none;
+      margin: 8px 0 0;
+      padding: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.36);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 10px 24px rgba(2, 8, 23, 0.2);
+      max-height: 260px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .suggest-list.show {
+      display: block;
+    }
+
+    .suggest-item {
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      color: #0f172a;
+      font-size: 13px;
+    }
+
+    .suggest-item:hover,
+    .suggest-item.active {
+      background: rgba(14, 165, 164, 0.12);
+    }
+
+    .suggest-code {
+      font-family: "Space Grotesk", sans-serif;
+      color: #334155;
+      font-size: 12px;
+      opacity: 0.86;
+      flex-shrink: 0;
+    }
+
+    .search-hint {
+      min-height: 18px;
+      margin-top: 6px;
+      font-size: 12px;
+      color: rgba(191, 219, 254, 0.95);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .search-hint.show {
+      opacity: 1;
+    }
+
+    .search-hint.error {
+      color: #fecaca;
+    }
+
+    .search-hint.success {
+      color: #bbf7d0;
+    }
+
+    .helper {
+      margin-top: 8px;
+      color: rgba(226, 232, 240, 0.9);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    select {
+      border: 1px solid rgba(148, 163, 184, 0.42);
+      background: rgba(255, 255, 255, 0.95);
+      color: #0f172a;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      min-width: 180px;
+    }
+
+    .status {
+      font-size: 12px;
+      color: rgba(226, 232, 240, 0.93);
+    }
+
+    .status.error {
+      color: #fecaca;
+    }
+
+    .grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      grid-column: span 12;
+      background: var(--card);
+      backdrop-filter: blur(6px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      animation: cardIn 0.45s ease forwards;
+      transform: translateY(6px);
+      opacity: 0;
+    }
+
+    .card:nth-child(1) {
+      animation-delay: 0.02s;
+    }
+
+    .card:nth-child(2) {
+      animation-delay: 0.07s;
+    }
+
+    .card:nth-child(3) {
+      animation-delay: 0.12s;
+    }
+
+    .card:nth-child(4) {
+      animation-delay: 0.17s;
+    }
+
+    @keyframes cardIn {
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .chart-title {
+      margin: 2px 0 10px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--title);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .chart-title .sub {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .chart {
+      width: 100%;
+      height: 360px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 860px;
+      background: #fff;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th.sortable:hover {
+      color: var(--accent-2);
+    }
+
+    @media (max-width: 900px) {
+      .search-row {
+        grid-template-columns: 1fr;
+      }
+
+      .analyze-btn {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 840px) {
+      .chart {
+        height: 320px;
+      }
+
+      .shell {
+        width: min(100vw, 98vw);
+      }
+
+      .hero {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <h1>港股公司分析看板</h1>
+      <p>输入 1 个或多个企业名称/港股代码，支持模糊检索，下拉选择后批量分析。</p>
+
+      <div class="query-panel">
+        <div id="selectedList" class="selected-list"></div>
+        <div class="search-row">
+          <input
+            id="searchInput"
+            class="search-input"
+            type="text"
+            placeholder="输入企业名称或港股代码，例如：腾讯、00700"
+            autocomplete="off"
+          />
+          <button id="analyzeBtn" class="analyze-btn" type="button">开始分析</button>
+        </div>
+        <ul id="suggestList" class="suggest-list"></ul>
+        <div id="searchHint" class="search-hint"></div>
+        <div class="helper">提示：可连续添加多家公司；回车可快速选中当前候选，代码输入支持 `HK00700` / `00700` / `700`。</div>
+      </div>
+
+      <div class="toolbar">
+        <select id="companySelector"></select>
+        <span id="statusText" class="status">等待输入企业后开始分析</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="chart-title">业绩和市值对比图 <span class="sub">营收/市值柱状 + 市销率折线</span></div>
+        <div id="revenueMarketChart" class="chart"></div>
+      </article>
+
+      <article class="card">
+        <div class="chart-title">资产负债表 <span class="sub">多公司模式下按公司切换查看</span></div>
+        <div id="balanceChart" class="chart"></div>
+      </article>
+
+      <article class="card">
+        <div class="chart-title">市盈率趋势 <span class="sub">包含均值、高估线、低估线</span></div>
+        <div id="peChart" class="chart"></div>
+      </article>
+
+      <article class="card">
+        <div class="chart-title">关系表 <span class="sub">点击列头可排序</span></div>
+        <div class="table-wrap">
+          <table id="relationTable">
+            <thead>
+              <tr>
+                <th>公司名称</th>
+                <th>报告期</th>
+                <th class="sortable" data-key="market_cap">公司市值</th>
+                <th class="sortable" data-key="total_revenue">业绩规模</th>
+                <th class="sortable" data-key="net_profit">利润规模</th>
+                <th class="sortable" data-key="pe_ttm">市盈率</th>
+                <th class="sortable" data-key="roe">ROE（估算）</th>
+                <th>核验状态</th>
+                <th>所属行业</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </div>
+
+  <script>
+    const API_BASE = resolveApiBase();
+
+    function normalizeApiBase(value) {
+      return String(value || "").trim().replace(/\/+$/, "");
+    }
+
+    function resolveApiBase() {
+      const queryApiBase = normalizeApiBase(new URLSearchParams(window.location.search).get("api"));
+      if (queryApiBase) return queryApiBase;
+
+      const globalApiBase = normalizeApiBase(window.__API_BASE__);
+      if (globalApiBase) return globalApiBase;
+
+      const meta = document.querySelector('meta[name="api-base"]');
+      const metaApiBase = normalizeApiBase(meta ? meta.getAttribute("content") : "");
+      if (metaApiBase) return metaApiBase;
+
+      return "";
+    }
+
+    const balanceLabels = {
+      asset_cash: "现金",
+      asset_receivables: "应收款",
+      asset_prepayments: "预付款",
+      asset_inventory: "存货",
+      asset_other_current: "资产-其它流动",
+      asset_long_term_investment: "长期投资",
+      asset_fixed_assets: "固定资产",
+      asset_intangible_goodwill: "无形/商誉",
+      asset_other_fixed: "其他固定",
+      liability_short_term_borrowing: "短期借款",
+      liability_payables: "应付款",
+      liability_advance_receipts: "预收款",
+      liability_payroll_tax: "薪酬/税",
+      liability_other_current: "负债-其它流动",
+      liability_long_term_borrowing: "长期借款",
+      liability_other_non_current: "其它非流动",
+    };
+
+    const frequencyOrder = ["monthly", "quarterly", "semiannual", "annual"];
+    const frequencyLabel = {
+      monthly: "月度",
+      quarterly: "季度",
+      semiannual: "半年度",
+      annual: "年度",
+    };
+
+    const sortState = {};
+
+    let selectedCompanies = [];
+    let suggestionItems = [];
+    let activeSuggestionIndex = -1;
+    let searchAbortController = null;
+    let searchDebounceTimer = null;
+    const suggestionCache = new Map();
+    const SUGGESTION_CACHE_TTL_MS = 60 * 1000;
+
+    let companies = [];
+    let relationRows = [];
+    let isMulti = false;
+
+    let revenueMarketChart = null;
+    let balanceChart = null;
+    let peChart = null;
+    let chartsReady = false;
+
+    const searchInput = document.getElementById("searchInput");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const selectedList = document.getElementById("selectedList");
+    const suggestList = document.getElementById("suggestList");
+    const searchHint = document.getElementById("searchHint");
+    const companySelector = document.getElementById("companySelector");
+    const statusText = document.getElementById("statusText");
+
+    function apiUrl(path) {
+      if (/^https?:\/\//i.test(path)) return path;
+      if (!API_BASE) return path;
+      return new URL(path, `${API_BASE}/`).toString();
+    }
+
+    function setStatus(text, isError = false) {
+      statusText.textContent = text;
+      statusText.className = isError ? "status error" : "status";
+    }
+
+    function setSearchHint(text = "", tone = "") {
+      if (!searchHint) return;
+      searchHint.textContent = text;
+      searchHint.className = `search-hint${text ? " show" : ""}${tone ? ` ${tone}` : ""}`;
+    }
+
+    function setAnalyzing(flag) {
+      analyzeBtn.disabled = flag;
+      analyzeBtn.textContent = flag ? "分析中..." : "开始分析";
+    }
+
+    function normalizeCodeMaybe(raw) {
+      if (!raw) return null;
+      const digits = String(raw)
+        .trim()
+        .toUpperCase()
+        .replace(/\.HK/g, "")
+        .replace(/HK/g, "")
+        .replace(/\D/g, "");
+      if (!digits) return null;
+      return digits.padStart(5, "0");
+    }
+
+    function renderSelectedTags() {
+      selectedList.innerHTML = "";
+      if (!selectedCompanies.length) {
+        const empty = document.createElement("span");
+        empty.style.fontSize = "12px";
+        empty.style.color = "rgba(226,232,240,0.78)";
+        empty.textContent = "尚未选择企业";
+        selectedList.appendChild(empty);
+        return;
+      }
+
+      for (const item of selectedCompanies) {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+
+        const label = document.createElement("span");
+        label.textContent = item.name;
+
+        const code = document.createElement("span");
+        code.className = "tag-code";
+        code.textContent = `(${item.code})`;
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "tag-remove";
+        remove.dataset.code = item.code;
+        remove.textContent = "×";
+
+        tag.appendChild(label);
+        tag.appendChild(code);
+        tag.appendChild(remove);
+        selectedList.appendChild(tag);
+      }
+    }
+
+    function addSelectedCompany(item) {
+      const code = normalizeCodeMaybe(item.code);
+      if (!code) return;
+
+      if (selectedCompanies.some((x) => x.code === code)) {
+        return;
+      }
+
+      const name = item.name ? String(item.name) : code;
+      selectedCompanies.push({ name, code });
+      renderSelectedTags();
+      filterSuggestionsAgainstSelected();
+    }
+
+    function removeSelectedCompany(code) {
+      selectedCompanies = selectedCompanies.filter((item) => item.code !== code);
+      renderSelectedTags();
+      filterSuggestionsAgainstSelected();
+    }
+
+    function filterSuggestionsAgainstSelected() {
+      const pickedCodes = new Set(selectedCompanies.map((x) => x.code));
+      suggestionItems = suggestionItems.filter((item) => !pickedCodes.has(item.code));
+      if (activeSuggestionIndex >= suggestionItems.length) {
+        activeSuggestionIndex = suggestionItems.length - 1;
+      }
+      renderSuggestionList();
+    }
+
+    function renderSuggestionList() {
+      suggestList.innerHTML = "";
+
+      if (!suggestionItems.length) {
+        suggestList.classList.remove("show");
+        return;
+      }
+
+      suggestionItems.forEach((item, idx) => {
+        const li = document.createElement("li");
+        li.className = `suggest-item${idx === activeSuggestionIndex ? " active" : ""}`;
+        li.dataset.index = String(idx);
+
+        const nameEl = document.createElement("span");
+        nameEl.textContent = item.name;
+
+        const codeEl = document.createElement("span");
+        codeEl.className = "suggest-code";
+        codeEl.textContent = item.code;
+
+        li.appendChild(nameEl);
+        li.appendChild(codeEl);
+        suggestList.appendChild(li);
+      });
+
+      suggestList.classList.add("show");
+    }
+
+    function hideSuggestions() {
+      suggestionItems = [];
+      activeSuggestionIndex = -1;
+      renderSuggestionList();
+    }
+
+    async function fetchSuggestions(keyword) {
+      const q = (keyword || "").trim();
+      if (!q) {
+        hideSuggestions();
+        setSearchHint("");
+        return;
+      }
+
+      const normalizedQuery = q.toLowerCase();
+      if (normalizedQuery.length < 2) {
+        hideSuggestions();
+        setSearchHint("至少输入 2 个字/字符后开始模糊查询");
+        return;
+      }
+
+      const cached = suggestionCache.get(normalizedQuery);
+      if (cached && cached.expiresAt > Date.now()) {
+        const pickedCodes = new Set(selectedCompanies.map((x) => x.code));
+        suggestionItems = cached.data.filter((item) => !pickedCodes.has(item.code));
+        activeSuggestionIndex = suggestionItems.length ? 0 : -1;
+        renderSuggestionList();
+        if (suggestionItems.length) {
+          setSearchHint(`已命中 ${suggestionItems.length} 条候选（缓存）`, "success");
+        } else {
+          setSearchHint("未找到匹配候选，请尝试代码或更完整名称");
+        }
+        return;
+      }
+
+      if (searchAbortController) {
+        searchAbortController.abort();
+      }
+
+      searchAbortController = new AbortController();
+      setSearchHint("正在查询候选…");
+
+      try {
+        const resp = await fetch(apiUrl(`/api/search?q=${encodeURIComponent(q)}`), {
+          method: "GET",
+          signal: searchAbortController.signal,
+        });
+
+        const payload = await resp.json();
+        if (!resp.ok) {
+          throw new Error(payload && payload.error ? payload.error.message : `HTTP ${resp.status}`);
+        }
+
+        const data = Array.isArray(payload.data) ? payload.data : [];
+        const normalizedItems = data
+          .map((item) => ({
+            name: item && item.name ? String(item.name) : "",
+            code: normalizeCodeMaybe(item && item.code ? item.code : ""),
+          }))
+          .filter((item) => item.name && item.code);
+
+        suggestionCache.set(normalizedQuery, {
+          expiresAt: Date.now() + SUGGESTION_CACHE_TTL_MS,
+          data: normalizedItems,
+        });
+
+        const pickedCodes = new Set(selectedCompanies.map((x) => x.code));
+        suggestionItems = normalizedItems.filter((item) => !pickedCodes.has(item.code));
+
+        activeSuggestionIndex = suggestionItems.length ? 0 : -1;
+        renderSuggestionList();
+
+        if (suggestionItems.length) {
+          setSearchHint(`查询完成：找到 ${suggestionItems.length} 条候选`, "success");
+        } else {
+          setSearchHint("未找到匹配候选，请尝试代码或更完整名称");
+        }
+      } catch (err) {
+        if (err && err.name === "AbortError") {
+          return;
+        }
+        hideSuggestions();
+        setSearchHint("模糊查询失败，请稍后重试", "error");
+        setStatus("模糊查询失败，已降频处理，请稍后重试", true);
+      }
+    }
+
+    function scheduleFetchSuggestions() {
+      if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+      }
+      setSearchHint("输入已停止，准备查询…");
+      searchDebounceTimer = setTimeout(() => {
+        fetchSuggestions(searchInput.value);
+      }, 700);
+    }
+
+    function latestNonNullMetric(rows, key) {
+      const sorted = sortRowsByPeriodEnd(rows || []);
+      for (let i = sorted.length - 1; i >= 0; i -= 1) {
+        const value = num(sorted[i] ? sorted[i][key] : null);
+        if (value !== null) return value;
+      }
+      return null;
+    }
+
+    function latestOverviewMetric(overviewByFrequency, key) {
+      for (const freq of frequencyOrder) {
+        const value = latestNonNullMetric((overviewByFrequency && overviewByFrequency[freq]) || [], key);
+        if (value !== null) return value;
+      }
+      return null;
+    }
+
+    function latestValuationMetric(valuationDaily, key) {
+      const sorted = (Array.isArray(valuationDaily) ? valuationDaily : [])
+        .filter((row) => row && row.date)
+        .slice()
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      for (let i = sorted.length - 1; i >= 0; i -= 1) {
+        const value = num(sorted[i] ? sorted[i][key] : null);
+        if (value !== null) return value;
+      }
+      return null;
+    }
+
+    function chooseSuggestionAt(index) {
+      if (index < 0 || index >= suggestionItems.length) return false;
+      const item = suggestionItems[index];
+      addSelectedCompany(item);
+      searchInput.value = "";
+      hideSuggestions();
+      setSearchHint(`已添加：${item.name}（${item.code}）`, "success");
+      return true;
+    }
+
+    function tryAddManualCodeFromInput() {
+      const code = normalizeCodeMaybe(searchInput.value);
+      if (!code) return false;
+      addSelectedCompany({ name: code, code });
+      searchInput.value = "";
+      hideSuggestions();
+      return true;
+    }
+
+    async function fetchCompaniesIndividually(symbols) {
+      const result = {};
+      const errors = [];
+
+      await Promise.all(
+        symbols.map(async (symbol) => {
+          try {
+            const resp = await fetch(apiUrl(`/api/company/${encodeURIComponent(symbol)}`), {
+              method: "GET",
+            });
+            const payload = await resp.json();
+            if (!resp.ok || !payload || !payload.data) {
+              const msg = payload && payload.error ? payload.error.message : `HTTP ${resp.status}`;
+              errors.push(`${symbol}: ${msg}`);
+              return;
+            }
+            result[symbol] = payload.data;
+          } catch (err) {
+            errors.push(`${symbol}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }),
+      );
+
+      return { result, errors };
+    }
+
+    async function runAnalysis() {
+      if (!selectedCompanies.length && searchInput.value.trim()) {
+        if (!chooseSuggestionAt(activeSuggestionIndex >= 0 ? activeSuggestionIndex : 0)) {
+          tryAddManualCodeFromInput();
+        }
+      }
+
+      if (!selectedCompanies.length) {
+        setStatus("请先添加至少 1 家企业", true);
+        return;
+      }
+
+      setAnalyzing(true);
+      setStatus("正在请求后端并计算企业数据...");
+
+      const symbols = selectedCompanies.map((item) => item.code);
+
+      try {
+        const { result, errors } = await fetchCompaniesIndividually(symbols);
+
+        const normalized = normalizeBatchPayload(result || {});
+        companies = normalized.companies;
+        relationRows = normalized.relation_rows;
+        isMulti = companies.length > 1;
+
+        buildCompanySelector();
+        renderRelationTable(relationRows);
+
+        if (chartsReady) {
+          redrawAll();
+        }
+
+        if (!companies.length) {
+          setStatus("后端返回为空，请检查输入或稍后重试", true);
+        } else if (errors.length) {
+          setStatus(`部分企业请求失败：${errors.join(" | ")}`, true);
+        } else {
+          setStatus(`分析完成：共 ${companies.length} 家企业（ROE为估算值，非公告原文）`);
+        }
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : String(err), true);
+        renderChartFallback("revenueMarketChart", "分析失败，暂无法渲染图表。");
+        renderChartFallback("balanceChart", "分析失败，暂无法渲染图表。");
+        renderChartFallback("peChart", "分析失败，暂无法渲染图表。");
+      } finally {
+        setAnalyzing(false);
+      }
+    }
+
+    function ensureArray(value) {
+      return Array.isArray(value) ? value : [];
+    }
+
+    function parseDateSafe(v) {
+      if (!v) return null;
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function latestRecord(rows, dateCol) {
+      if (!Array.isArray(rows) || !rows.length) return {};
+      const sorted = rows
+        .filter((row) => row && row[dateCol])
+        .slice()
+        .sort((a, b) => String(a[dateCol]).localeCompare(String(b[dateCol])));
+      return sorted.length ? sorted[sorted.length - 1] : {};
+    }
+
+    function latestRecordByFrequency(rowsByFrequency, dateCol, preferredFrequency) {
+      const order = [];
+      if (preferredFrequency) {
+        order.push(preferredFrequency);
+      }
+      frequencyOrder.forEach((freq) => {
+        if (freq !== preferredFrequency) {
+          order.push(freq);
+        }
+      });
+
+      for (const freq of order) {
+        const rows = rowsByFrequency[freq] || [];
+        const rec = latestRecord(rows, dateCol);
+        if (rec && Object.keys(rec).length) {
+          return rec;
+        }
+      }
+      return {};
+    }
+
+    function normalizeBatchPayload(batchData) {
+      const normalizedCompanies = [];
+      const rows = [];
+
+      Object.entries(batchData || {}).forEach(([symbol, payload]) => {
+        const meta = ensureArray(payload && payload.meta)[0] || {};
+        const selectedFrequency = String(meta.selected_frequency || "annual");
+
+        const overviewByFrequency = {
+          monthly: sortRowsByPeriodEnd(ensureArray(payload && payload.overview_monthly)),
+          quarterly: sortRowsByPeriodEnd(ensureArray(payload && payload.overview_quarterly)),
+          semiannual: sortRowsByPeriodEnd(ensureArray(payload && payload.overview_semiannual)),
+          annual: sortRowsByPeriodEnd(ensureArray(payload && payload.overview_annual)),
+        };
+
+        const balanceByFrequency = {
+          monthly: sortRowsByPeriodEnd(ensureArray(payload && payload.balance_monthly)),
+          quarterly: sortRowsByPeriodEnd(ensureArray(payload && payload.balance_quarterly)),
+          semiannual: sortRowsByPeriodEnd(ensureArray(payload && payload.balance_semiannual)),
+          annual: sortRowsByPeriodEnd(ensureArray(payload && payload.balance_annual)),
+        };
+
+        const selectedOverview = overviewByFrequency[selectedFrequency].length
+          ? overviewByFrequency[selectedFrequency]
+          : sortRowsByPeriodEnd(ensureArray(payload && payload.overview));
+
+        const selectedBalance = balanceByFrequency[selectedFrequency].length
+          ? balanceByFrequency[selectedFrequency]
+          : sortRowsByPeriodEnd(ensureArray(payload && payload.balance_sheet));
+
+        const overviewLatest =
+          latestRecord(selectedOverview, "period_end") ||
+          latestRecordByFrequency(overviewByFrequency, "period_end", selectedFrequency);
+
+        const balanceLatest =
+          latestRecord(selectedBalance, "period_end") ||
+          latestRecordByFrequency(balanceByFrequency, "period_end", selectedFrequency);
+
+        const reportDate = (overviewLatest && overviewLatest.period_end) || (balanceLatest && balanceLatest.period_end) || null;
+
+        const fallbackMarketCap = latestValuationMetric(payload && payload.valuation_daily, "market_cap");
+        const fallbackPe = latestValuationMetric(payload && payload.valuation_daily, "pe_ttm");
+        const fallbackRoe = latestOverviewMetric(overviewByFrequency, "roe");
+
+        const roeValue = overviewLatest ? (num(overviewLatest.roe) ?? fallbackRoe) : fallbackRoe;
+
+        rows.push({
+          symbol: meta.symbol || symbol,
+          company_name: meta.company_name || symbol,
+          report_date: reportDate,
+          industry: meta.industry || null,
+          market_cap: overviewLatest ? (num(overviewLatest.market_cap) ?? fallbackMarketCap) : fallbackMarketCap,
+          total_revenue: overviewLatest ? overviewLatest.total_revenue : null,
+          net_profit: overviewLatest ? overviewLatest.net_profit : null,
+          pe_ttm: overviewLatest ? (num(overviewLatest.pe_ttm) ?? fallbackPe) : fallbackPe,
+          roe: roeValue,
+          verification_status: roeValue === null ? "营收/净利已核验，ROE缺失" : "营收/净利已核验，ROE为估算",
+        });
+
+        normalizedCompanies.push({
+          symbol: String(meta.symbol || symbol),
+          company_name: meta.company_name || symbol,
+          industry: meta.industry || null,
+          selected_frequency: selectedFrequency,
+          overview: selectedOverview,
+          overview_by_frequency: overviewByFrequency,
+          balance_history: selectedBalance,
+          balance_by_frequency: balanceByFrequency,
+          balance_latest: balanceLatest,
+          valuation_daily: ensureArray(payload && payload.valuation_daily),
+          dividends: ensureArray(payload && payload.dividends),
+          source_trace: ensureArray(payload && payload.source_trace),
+        });
+      });
+
+      return {
+        companies: normalizedCompanies,
+        relation_rows: rows,
+      };
+    }
+
+    function renderChartFallback(id, message) {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const chartMap = {
+        revenueMarketChart,
+        balanceChart,
+        peChart,
+      };
+      const chart = chartMap[id];
+      if (chart && typeof chart.clear === "function") {
+        chart.clear();
+        chart.setOption(
+          {
+            xAxis: { show: false, type: "category", data: [] },
+            yAxis: { show: false, type: "value" },
+            series: [],
+            grid: { left: 0, right: 0, top: 0, bottom: 0 },
+            graphic: {
+              type: "text",
+              left: "center",
+              top: "middle",
+              style: {
+                text: message,
+                fill: "#475569",
+                fontSize: 13,
+                width: Math.max((el.clientWidth || 320) - 24, 220),
+                overflow: "break",
+                lineHeight: 20,
+                textAlign: "center",
+              },
+            },
+          },
+          true,
+        );
+        return;
+      }
+
+      el.innerHTML = `
+        <div style="height:100%;display:flex;align-items:center;justify-content:center;
+                    border:1px dashed rgba(15,23,42,.2);border-radius:10px;background:#fff;color:#475569;
+                    font-size:13px;padding:16px;text-align:center;">
+          ${message}
+        </div>
+      `;
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.async = true;
+        s.onload = () => resolve(true);
+        s.onerror = () => reject(new Error(`load failed: ${src}`));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function ensureEcharts() {
+      if (typeof window.echarts !== "undefined") return true;
+      const cdnList = [
+        "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js",
+        "https://unpkg.com/echarts@5/dist/echarts.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.1/echarts.min.js",
+      ];
+      for (const src of cdnList) {
+        try {
+          await loadScript(src);
+          if (typeof window.echarts !== "undefined") return true;
+        } catch {
+          // continue
+        }
+      }
+      return false;
+    }
+
+    function initCharts() {
+      if (typeof window.echarts === "undefined") return false;
+      revenueMarketChart = echarts.init(document.getElementById("revenueMarketChart"));
+      balanceChart = echarts.init(document.getElementById("balanceChart"));
+      peChart = echarts.init(document.getElementById("peChart"));
+      return true;
+    }
+
+    function num(v) {
+      return typeof v === "number" && Number.isFinite(v) ? v : null;
+    }
+
+    function fmt(v) {
+      if (v === null || v === undefined || Number.isNaN(v)) return "-";
+      const abs = Math.abs(v);
+      if (abs >= 1e12) return (v / 1e12).toFixed(2) + "T";
+      if (abs >= 1e8) return (v / 1e8).toFixed(2) + "亿";
+      if (abs >= 1e4) return (v / 1e4).toFixed(2) + "万";
+      return Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    function fmtRatio(v) {
+      const n = num(v);
+      if (n === null) return "-";
+      return n.toLocaleString("zh-CN", { maximumFractionDigits: 3 });
+    }
+
+    function fmtPercent(v) {
+      const n = num(v);
+      if (n === null) return "-";
+      return (n * 100).toLocaleString("zh-CN", { maximumFractionDigits: 2 }) + "%";
+    }
+
+    function calcPs(marketCap, revenue) {
+      const cap = num(marketCap);
+      const rev = num(revenue);
+      if (cap === null || rev === null || rev === 0) return null;
+      return cap / rev;
+    }
+
+    function pickScale(values, options = {}) {
+      const nums = (Array.isArray(values) ? values : [])
+        .map((v) => num(v))
+        .filter((v) => v !== null)
+        .map((v) => Math.abs(v));
+      const maxAbs = nums.length ? Math.max(...nums) : 0;
+      const maxFactor = options && typeof options.maxFactor === "number" ? options.maxFactor : Number.POSITIVE_INFINITY;
+      const levels = [
+        { factor: 1e12, axisUnit: "万亿元", shortUnit: "万亿" },
+        { factor: 1e8, axisUnit: "亿元", shortUnit: "亿" },
+        { factor: 1e4, axisUnit: "万元", shortUnit: "万" },
+      ];
+      for (const level of levels) {
+        if (level.factor <= maxFactor && maxAbs >= level.factor) return level;
+      }
+      return { factor: 1, axisUnit: "元", shortUnit: "元" };
+    }
+
+    function scaleValue(v, scale) {
+      const n = num(v);
+      if (n === null) return null;
+      return n / (scale && scale.factor ? scale.factor : 1);
+    }
+
+    function scaleArray(values, scale) {
+      return (Array.isArray(values) ? values : []).map((v) => scaleValue(v, scale));
+    }
+
+    function fmtScaledValue(v) {
+      const n = num(v);
+      if (n === null) return "-";
+      const abs = Math.abs(n);
+      let digits = 2;
+      if (abs > 0 && abs < 0.01) digits = 6;
+      else if (abs < 1) digits = 4;
+      return n.toLocaleString("zh-CN", { maximumFractionDigits: digits });
+    }
+
+    function fmtScaledByRaw(raw, scale) {
+      const n = num(raw);
+      if (n === null) return "-";
+      const scaled = n / (scale && scale.factor ? scale.factor : 1);
+      return `${fmtScaledValue(scaled)}${scale && scale.shortUnit ? scale.shortUnit : ""}`;
+    }
+
+    function getOverviewRows(company, frequency) {
+      if (!company) return [];
+      const byFreq = company.overview_by_frequency || {};
+      const rows = byFreq[frequency] || [];
+      return Array.isArray(rows) ? rows : [];
+    }
+
+    function overviewSourceCandidates(targetFrequency) {
+      if (targetFrequency === "monthly") return ["monthly"];
+      if (targetFrequency === "quarterly") return ["quarterly", "monthly"];
+      if (targetFrequency === "semiannual") return ["semiannual", "quarterly", "monthly"];
+      if (targetFrequency === "annual") return ["annual", "semiannual", "quarterly", "monthly"];
+      return [targetFrequency];
+    }
+
+    function periodKeyByFrequency(d, frequency) {
+      if (!d) return null;
+      const year = d.getUTCFullYear();
+      const month = d.getUTCMonth() + 1;
+      if (frequency === "monthly") return `${year}-${String(month).padStart(2, "0")}`;
+      if (frequency === "quarterly") return `${year}Q${Math.floor((month - 1) / 3) + 1}`;
+      if (frequency === "semiannual") return `${year}H${month <= 6 ? 1 : 2}`;
+      if (frequency === "annual") return `${year}`;
+      return null;
+    }
+
+    function sortRowsByPeriodEnd(rows) {
+      return (Array.isArray(rows) ? rows : [])
+        .filter((r) => r && r.period_end)
+        .slice()
+        .sort((a, b) => String(a.period_end).localeCompare(String(b.period_end)));
+    }
+
+    function aggregateOverviewRows(rows, targetFrequency) {
+      const sorted = sortRowsByPeriodEnd(rows);
+      if (!sorted.length) return [];
+      if (targetFrequency === "monthly") return sorted;
+
+      const flowKeys = ["total_revenue", "net_profit", "dividend_per_share"];
+      const stockKeys = ["market_cap", "pe_ttm", "pe_mean", "pe_high", "pe_low", "roe"];
+      const groups = new Map();
+
+      sorted.forEach((row) => {
+        const d = parseDateSafe(row.period_end);
+        const key = periodKeyByFrequency(d, targetFrequency);
+        if (!key) return;
+        let agg = groups.get(key);
+        if (!agg) {
+          agg = { period_end: row.period_end };
+          groups.set(key, agg);
+        }
+
+        const prevDate = parseDateSafe(agg.period_end);
+        if (!prevDate || (d && d > prevDate)) {
+          agg.period_end = row.period_end;
+        }
+
+        flowKeys.forEach((k) => {
+          const v = num(row[k]);
+          if (v === null) return;
+          const current = num(agg[k]);
+          agg[k] = (current === null ? 0 : current) + v;
+        });
+
+        stockKeys.forEach((k) => {
+          const v = num(row[k]);
+          if (v === null) return;
+          const prev = parseDateSafe(agg[`${k}_ts`] || agg.period_end);
+          if (!prev || (d && d >= prev)) {
+            agg[k] = v;
+            agg[`${k}_ts`] = row.period_end;
+          }
+        });
+      });
+
+      return Array.from(groups.values())
+        .map((row) => {
+          const clean = { ...row };
+          Object.keys(clean).forEach((k) => {
+            if (k.endsWith("_ts")) delete clean[k];
+          });
+          return clean;
+        })
+        .sort((a, b) => String(a.period_end).localeCompare(String(b.period_end)));
+    }
+
+    function getOverviewRowsCompatible(company, targetFrequency) {
+      if (!company) return [];
+      const cache = company.__overview_compat_cache || {};
+      if (cache[targetFrequency]) return cache[targetFrequency];
+
+      const candidates = overviewSourceCandidates(targetFrequency);
+      for (const srcFreq of candidates) {
+        const srcRows = getOverviewRows(company, srcFreq);
+        if (!srcRows.length) continue;
+        const rows = srcFreq === targetFrequency ? sortRowsByPeriodEnd(srcRows) : aggregateOverviewRows(srcRows, targetFrequency);
+        if (rows.length) {
+          cache[targetFrequency] = rows;
+          company.__overview_compat_cache = cache;
+          return rows;
+        }
+      }
+      cache[targetFrequency] = [];
+      company.__overview_compat_cache = cache;
+      return [];
+    }
+
+    function getBalanceRows(company, frequency) {
+      if (!company) return [];
+      const byFreq = company.balance_by_frequency || {};
+      const rows = byFreq[frequency] || [];
+      return Array.isArray(rows) ? rows : [];
+    }
+
+    function hasAnyMetric(rows, keys) {
+      if (!Array.isArray(rows) || !rows.length) return false;
+      return rows.some((row) => keys.some((key) => num(row[key]) !== null));
+    }
+
+    function hasAllMetrics(rows, keys) {
+      if (!Array.isArray(rows) || !rows.length) return false;
+      return rows.some((row) => keys.every((key) => num(row[key]) !== null));
+    }
+
+    function companyHasRevenueMarketFrequency(company, frequency) {
+      const rows = getOverviewRowsCompatible(company, frequency);
+      return hasAnyMetric(rows, ["total_revenue", "market_cap"]);
+    }
+
+    function unifiedRevenueMarketFrequency() {
+      if (!companies.length) return null;
+      if (isMulti) {
+        for (const f of frequencyOrder) {
+          if (companies.every((c) => companyHasRevenueMarketFrequency(c, f))) return f;
+        }
+        return null;
+      }
+      const c = companies[0];
+      for (const f of frequencyOrder) {
+        if (companyHasRevenueMarketFrequency(c, f)) return f;
+      }
+      return null;
+    }
+
+    function firstCompanyFrequency(company, rowsGetter, keys) {
+      for (const f of frequencyOrder) {
+        const rows = rowsGetter(company, f);
+        if (hasAnyMetric(rows, keys)) return f;
+      }
+      return null;
+    }
+
+    function listPeriodsByFrequency(frequency) {
+      const set = new Set();
+      companies.forEach((c) => {
+        getOverviewRowsCompatible(c, frequency).forEach((row) => {
+          if (row && row.period_end) set.add(String(row.period_end));
+        });
+      });
+      return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }
+
+    function periodMetricMap(company, frequency, key) {
+      const m = new Map();
+      getOverviewRowsCompatible(company, frequency).forEach((row) => {
+        if (row && row.period_end) m.set(String(row.period_end), num(row[key]));
+      });
+      return m;
+    }
+
+    function buildCompanySelector() {
+      companySelector.innerHTML = "";
+      companies.forEach((c, idx) => {
+        const opt = document.createElement("option");
+        opt.value = String(idx);
+        opt.textContent = `${c.company_name || c.symbol} (${c.symbol})`;
+        companySelector.appendChild(opt);
+      });
+
+      if (!isMulti) {
+        companySelector.style.display = "none";
+      } else {
+        companySelector.style.display = "";
+      }
+    }
+
+    function renderRevenueMarket() {
+      if (!revenueMarketChart) return;
+      if (!companies.length) {
+        renderChartFallback("revenueMarketChart", "请先添加企业并点击“开始分析”。");
+        return;
+      }
+
+      const frequency = unifiedRevenueMarketFrequency();
+      if (!frequency) {
+        renderChartFallback(
+          "revenueMarketChart",
+          "暂无可展示的统一频率业绩/市值数据（按 月度>季度>半年度>年度 自动降级后仍无结果）。请检查数据源后重试。",
+        );
+        return;
+      }
+
+      if (!isMulti) {
+        const c = companies[0];
+        const rows = getOverviewRowsCompatible(c, frequency);
+        const x = rows.map((r) => r.period_end);
+        const revenueRaw = rows.map((r) => num(r.total_revenue));
+        const capRaw = rows.map((r) => num(r.market_cap));
+        const psRaw = rows.map((r) => calcPs(r.market_cap, r.total_revenue));
+
+        const amountScale = pickScale([...revenueRaw, ...capRaw], { maxFactor: 1e8 });
+        const revenue = scaleArray(revenueRaw, amountScale);
+        const cap = scaleArray(capRaw, amountScale);
+
+        revenueMarketChart.setOption(
+          {
+            color: ["#0ea5a4", "#2563eb", "#14b8a6", "#3b82f6"],
+            tooltip: {
+              trigger: "axis",
+              formatter: (items) => {
+                if (!Array.isArray(items) || !items.length) return "";
+                const lines = items.map((it) => {
+                  if (String(it.seriesName).includes("市销率")) {
+                    return `${it.marker}${it.seriesName}: ${fmtRatio(it.value)}`;
+                  }
+                  const raw = num(it.value) === null ? null : Number(it.value) * amountScale.factor;
+                  return `${it.marker}${it.seriesName}: ${fmtScaledByRaw(raw, amountScale)}`;
+                });
+                return `${items[0].axisValue}<br/>${lines.join("<br/>")}`;
+              },
+            },
+            legend: { top: 4, data: ["总营收", "市值", "市销率(PS)"] },
+            xAxis: { type: "category", data: x },
+            yAxis: [
+              {
+                type: "value",
+                name: `金额（${amountScale.axisUnit}）`,
+                axisLabel: {
+                  formatter: (v) => fmtScaledValue(v),
+                },
+              },
+              {
+                type: "value",
+                name: "市销率(PS)",
+                axisLabel: {
+                  formatter: (v) => fmtRatio(v),
+                },
+              },
+            ],
+            series: [
+              { name: "总营收", type: "bar", data: revenue, barMaxWidth: 24 },
+              { name: "市值", type: "bar", data: cap, barMaxWidth: 24 },
+              { name: "市销率(PS)", type: "line", yAxisIndex: 1, smooth: true, data: psRaw },
+            ],
+            grid: { left: 90, right: 86, top: 58, bottom: 40, containLabel: true },
+          },
+          true,
+        );
+        return;
+      }
+
+      const periods = listPeriodsByFrequency(frequency);
+      if (!periods.length) {
+        renderChartFallback("revenueMarketChart", `暂无可展示的${frequencyLabel[frequency] || frequency}业绩/市值数据。`);
+        return;
+      }
+
+      const legend = [];
+      const series = [];
+      const companySeriesData = [];
+
+      companies.forEach((c) => {
+        const name = c.company_name || c.symbol;
+        const revenueName = `${name}-营收`;
+        const capName = `${name}-市值`;
+        const psName = `${name}-市销率`;
+
+        const revenueMap = periodMetricMap(c, frequency, "total_revenue");
+        const capMap = periodMetricMap(c, frequency, "market_cap");
+
+        const revenueRaw = periods.map((p) => revenueMap.get(p) ?? null);
+        const capRaw = periods.map((p) => capMap.get(p) ?? null);
+        const psRaw = periods.map((_, idx) => calcPs(capRaw[idx], revenueRaw[idx]));
+
+        companySeriesData.push({
+          revenueName,
+          capName,
+          psName,
+          revenueRaw,
+          capRaw,
+          psRaw,
+        });
+      });
+
+      const allRevenueRaw = companySeriesData.flatMap((item) => item.revenueRaw);
+      const allCapRaw = companySeriesData.flatMap((item) => item.capRaw);
+      const amountScale = pickScale([...allRevenueRaw, ...allCapRaw], { maxFactor: 1e8 });
+
+      companySeriesData.forEach((item) => {
+        const revenueData = scaleArray(item.revenueRaw, amountScale);
+        const capData = scaleArray(item.capRaw, amountScale);
+        legend.push(item.revenueName, item.capName, item.psName);
+        series.push(
+          { name: item.revenueName, type: "bar", data: revenueData, barMaxWidth: 16 },
+          { name: item.capName, type: "bar", data: capData, barMaxWidth: 16 },
+          { name: item.psName, type: "line", yAxisIndex: 1, smooth: true, data: item.psRaw },
+        );
+      });
+
+      revenueMarketChart.setOption(
+        {
+          color: ["#0ea5a4", "#2563eb", "#14b8a6", "#3b82f6", "#ea580c", "#7c3aed", "#16a34a", "#dc2626", "#0891b2", "#9333ea"],
+          tooltip: {
+            trigger: "axis",
+            formatter: (items) => {
+              if (!Array.isArray(items) || !items.length) return "";
+              const lines = items.map((it) => {
+                if (String(it.seriesName).includes("市销率")) {
+                  return `${it.marker}${it.seriesName}: ${fmtRatio(it.value)}`;
+                }
+                const raw = num(it.value) === null ? null : Number(it.value) * amountScale.factor;
+                return `${it.marker}${it.seriesName}: ${fmtScaledByRaw(raw, amountScale)}`;
+              });
+              return `${items[0].axisValue}<br/>${lines.join("<br/>")}`;
+            },
+          },
+          legend: { top: 4, data: legend },
+          xAxis: { type: "category", data: periods },
+          yAxis: [
+            {
+              type: "value",
+              name: `金额（${amountScale.axisUnit}）`,
+              axisLabel: {
+                formatter: (v) => fmtScaledValue(v),
+              },
+            },
+            {
+              type: "value",
+              name: "市销率(PS)",
+              axisLabel: {
+                formatter: (v) => fmtRatio(v),
+              },
+            },
+          ],
+          series,
+          grid: { left: 90, right: 90, top: 64, bottom: 40, containLabel: true },
+        },
+        true,
+      );
+    }
+
+    function selectedCompany() {
+      const idx = Number(companySelector.value || 0);
+      return companies[idx] || companies[0];
+    }
+
+    function renderBalance() {
+      if (!balanceChart) return;
+      const c = selectedCompany();
+      if (!c) {
+        renderChartFallback("balanceChart", "请先添加企业并点击“开始分析”。");
+        return;
+      }
+
+      const revenueFrequency = unifiedRevenueMarketFrequency();
+      const balanceKeys = Object.keys(balanceLabels);
+      const revenueRows = revenueFrequency ? getBalanceRows(c, revenueFrequency) : [];
+      const revenueFrequencyUsable = revenueRows.length && hasAnyMetric(revenueRows, balanceKeys);
+      const fallbackFrequency = firstCompanyFrequency(c, getBalanceRows, balanceKeys);
+      const frequency = revenueFrequencyUsable ? revenueFrequency : fallbackFrequency;
+
+      if (!frequency) {
+        renderChartFallback("balanceChart", "暂无可展示的资产负债数据。");
+        return;
+      }
+
+      const rows = getBalanceRows(c, frequency);
+      const latest = rows.length ? rows[rows.length - 1] : c.balance_latest || {};
+      if (!latest || Object.keys(latest).length === 0) {
+        renderChartFallback("balanceChart", `暂无可展示的${frequencyLabel[frequency] || frequency}资产负债数据。`);
+        return;
+      }
+
+      const keys = Object.keys(balanceLabels);
+      const periodLabel = latest.period_end || "-";
+
+      const assetKeys = new Set([
+        "asset_cash",
+        "asset_receivables",
+        "asset_prepayments",
+        "asset_inventory",
+        "asset_other_current",
+        "asset_long_term_investment",
+        "asset_fixed_assets",
+        "asset_intangible_goodwill",
+        "asset_other_fixed",
+      ]);
+
+      const liabilityKeys = new Set([
+        "liability_short_term_borrowing",
+        "liability_payables",
+        "liability_advance_receipts",
+        "liability_payroll_tax",
+        "liability_other_current",
+        "liability_long_term_borrowing",
+        "liability_other_non_current",
+      ]);
+
+      const assetColor = "#2563eb";
+      const liabilityColor = "#ea580c";
+      const defaultColor = "#64748b";
+
+      const assetTotalRaw = Array.from(assetKeys).reduce((sum, key) => {
+        const v = num(latest[key]);
+        return v === null ? sum : sum + v;
+      }, 0);
+
+      const liabilityTotalRaw = Array.from(liabilityKeys).reduce((sum, key) => {
+        const v = num(latest[key]);
+        return v === null ? sum : sum + v;
+      }, 0);
+
+      const hasAssetItem = Array.from(assetKeys).some((key) => num(latest[key]) !== null);
+      const hasLiabilityItem = Array.from(liabilityKeys).some((key) => num(latest[key]) !== null);
+
+      const x = keys.map((k) => balanceLabels[k] || k);
+      const rawValues = keys
+        .map((k) => num(latest[k]))
+        .concat(hasAssetItem ? [assetTotalRaw] : [])
+        .concat(hasLiabilityItem ? [liabilityTotalRaw] : []);
+
+      const balanceScale = pickScale(rawValues);
+      const assetTotalText = hasAssetItem ? fmtScaledByRaw(assetTotalRaw, balanceScale) : "-";
+      const liabilityTotalText = hasLiabilityItem ? fmtScaledByRaw(liabilityTotalRaw, balanceScale) : "-";
+
+      const y = keys.map((k) => {
+        const value = num(latest[k]);
+        const scaledValue = scaleValue(value, balanceScale);
+        const color = assetKeys.has(k) ? assetColor : liabilityKeys.has(k) ? liabilityColor : defaultColor;
+        return {
+          value: scaledValue,
+          raw: value,
+          itemStyle: {
+            color,
+            borderRadius: [6, 6, 0, 0],
+          },
+        };
+      });
+
+      balanceChart.setOption(
+        {
+          title: {
+            text: `报告期：${periodLabel} ｜ 单位：${balanceScale.axisUnit}`,
+            subtext: `资产合计：${assetTotalText} ｜ 负债合计：${liabilityTotalText}`,
+            left: 8,
+            top: 0,
+            textStyle: {
+              fontSize: 12,
+              fontWeight: 500,
+              color: "#475569",
+            },
+            subtextStyle: {
+              fontSize: 12,
+              fontWeight: 500,
+              color: "#334155",
+              padding: [8, 0, 0, 0],
+            },
+          },
+          tooltip: {
+            trigger: "axis",
+            axisPointer: { type: "shadow" },
+            formatter: (items) => {
+              if (!Array.isArray(items) || !items.length) return `报告期：${periodLabel}`;
+              const lines = items.map((it) => {
+                const raw = it && it.data && typeof it.data === "object" && "raw" in it.data ? num(it.data.raw) : null;
+                return `${it.marker}${it.axisValue}: ${fmtScaledByRaw(raw, balanceScale)}`;
+              });
+              return `报告期：${periodLabel}<br/>${lines.join("<br/>")}`;
+            },
+          },
+          xAxis: {
+            type: "category",
+            data: x,
+            axisLabel: { rotate: 28, fontSize: 11, interval: 0 },
+          },
+          yAxis: {
+            type: "value",
+            name: `金额（${balanceScale.axisUnit}）`,
+            axisLabel: {
+              formatter: (v) => fmtScaledValue(v),
+            },
+          },
+          series: [
+            {
+              name: "金额",
+              type: "bar",
+              data: y,
+              label: {
+                show: true,
+                position: "top",
+                color: "#334155",
+                fontSize: 10,
+                formatter: (params) => {
+                  const raw = params && params.data && typeof params.data === "object" && "raw" in params.data ? num(params.data.raw) : null;
+                  return raw === null ? "" : fmtScaledByRaw(raw, balanceScale);
+                },
+              },
+            },
+          ],
+          grid: { left: 96, right: 30, top: 80, bottom: 92, containLabel: true },
+        },
+        true,
+      );
+    }
+
+    function renderPeTrend() {
+      if (!peChart) return;
+      const c = selectedCompany();
+      if (!c) {
+        renderChartFallback("peChart", "请先添加企业并点击“开始分析”。");
+        return;
+      }
+
+      const revenueFrequency = unifiedRevenueMarketFrequency();
+      const peKeys = ["pe_ttm", "pe_mean", "pe_high", "pe_low"];
+      const revenueRows = revenueFrequency ? getOverviewRowsCompatible(c, revenueFrequency) : [];
+      const revenueFrequencyUsable = revenueRows.length && hasAnyMetric(revenueRows, peKeys);
+      const fallbackFrequency = firstCompanyFrequency(c, getOverviewRowsCompatible, peKeys);
+      const frequency = revenueFrequencyUsable ? revenueFrequency : fallbackFrequency;
+
+      if (!frequency) {
+        renderChartFallback("peChart", "暂无可展示的市盈率趋势数据。");
+        return;
+      }
+
+      const rows = getOverviewRowsCompatible(c, frequency);
+      if (!rows.length) {
+        renderChartFallback("peChart", `暂无可展示的${frequencyLabel[frequency] || frequency}市盈率趋势数据。`);
+        return;
+      }
+
+      const reportDates = rows.map((r) => r.period_end);
+      const latestReportDate = reportDates.length ? reportDates[reportDates.length - 1] : "-";
+      const pe = rows.map((r) => num(r.pe_ttm));
+      const mean = rows.length ? num(rows[rows.length - 1].pe_mean) : null;
+      const high = rows.length ? num(rows[rows.length - 1].pe_high) : null;
+      const low = rows.length ? num(rows[rows.length - 1].pe_low) : null;
+
+      peChart.setOption(
+        {
+          title: {
+            text: `报告期：${latestReportDate}`,
+            left: 8,
+            top: 0,
+            textStyle: {
+              fontSize: 12,
+              fontWeight: 500,
+              color: "#475569",
+            },
+          },
+          color: ["#2563eb", "#0ea5a4", "#ea580c", "#64748b"],
+          tooltip: {
+            trigger: "axis",
+            formatter: (items) => {
+              if (!Array.isArray(items) || !items.length) return "";
+              const reportDate = items[0].axisValue || "-";
+              const lines = items.map((it) => `${it.marker}${it.seriesName}: ${fmt(it.value)}`);
+              return `报告期：${reportDate}<br/>${lines.join("<br/>")}`;
+            },
+          },
+          legend: { top: 4, data: ["PE(TTM)", "均值", "高估线", "低估线"] },
+          xAxis: { type: "category", data: reportDates },
+          yAxis: { type: "value", name: "PE" },
+          series: [
+            { name: "PE(TTM)", type: "line", smooth: true, data: pe },
+            { name: "均值", type: "line", symbol: "none", data: reportDates.map(() => mean) },
+            { name: "高估线", type: "line", symbol: "none", data: reportDates.map(() => high) },
+            { name: "低估线", type: "line", symbol: "none", data: reportDates.map(() => low) },
+          ],
+          grid: { left: 80, right: 30, top: 72, bottom: 34, containLabel: true },
+        },
+        true,
+      );
+    }
+
+    function appendCell(tr, text) {
+      const td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    }
+
+    function renderRelationTable(rows) {
+      const tbody = document.querySelector("#relationTable tbody");
+      tbody.innerHTML = "";
+
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        appendCell(tr, row.company_name || row.symbol || "-");
+        appendCell(tr, row.report_date || "-");
+        appendCell(tr, fmt(row.market_cap));
+        appendCell(tr, fmt(row.total_revenue));
+        appendCell(tr, fmt(row.net_profit));
+        appendCell(tr, fmt(row.pe_ttm));
+        appendCell(tr, fmtPercent(row.roe));
+        appendCell(tr, row.verification_status || "未核验");
+        appendCell(tr, row.industry || "-");
+        tbody.appendChild(tr);
+      });
+    }
+
+    function bindSortEvents() {
+      document.querySelectorAll("#relationTable th.sortable").forEach((th) => {
+        th.addEventListener("click", () => {
+          const key = th.dataset.key;
+          const current = sortState[key] || "desc";
+          const next = current === "asc" ? "desc" : "asc";
+          sortState[key] = next;
+          relationRows.sort((a, b) => {
+            const av = num(a[key]) ?? -Infinity;
+            const bv = num(b[key]) ?? -Infinity;
+            return next === "asc" ? av - bv : bv - av;
+          });
+          renderRelationTable(relationRows);
+        });
+      });
+    }
+
+    function redrawAll() {
+      renderRevenueMarket();
+      renderBalance();
+      renderPeTrend();
+    }
+
+    function bindInputEvents() {
+      searchInput.addEventListener("input", () => {
+        scheduleFetchSuggestions();
+      });
+
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") {
+          if (!suggestionItems.length) return;
+          event.preventDefault();
+          activeSuggestionIndex = Math.min(activeSuggestionIndex + 1, suggestionItems.length - 1);
+          renderSuggestionList();
+          return;
+        }
+
+        if (event.key === "ArrowUp") {
+          if (!suggestionItems.length) return;
+          event.preventDefault();
+          activeSuggestionIndex = Math.max(activeSuggestionIndex - 1, 0);
+          renderSuggestionList();
+          return;
+        }
+
+        if (event.key === "Enter") {
+          event.preventDefault();
+
+          if (suggestionItems.length) {
+            if (activeSuggestionIndex < 0) {
+              activeSuggestionIndex = 0;
+            }
+            chooseSuggestionAt(activeSuggestionIndex);
+            return;
+          }
+
+          if (tryAddManualCodeFromInput()) {
+            return;
+          }
+
+          runAnalysis();
+          return;
+        }
+
+        if (event.key === "Escape") {
+          hideSuggestions();
+        }
+      });
+
+      suggestList.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+      });
+
+      suggestList.addEventListener("click", (event) => {
+        const li = event.target.closest("li.suggest-item");
+        if (!li) return;
+        const idx = Number(li.dataset.index);
+        chooseSuggestionAt(idx);
+      });
+
+      selectedList.addEventListener("click", (event) => {
+        const btn = event.target.closest("button.tag-remove");
+        if (!btn) return;
+        const code = btn.dataset.code;
+        if (code) {
+          removeSelectedCompany(code);
+        }
+      });
+
+      analyzeBtn.addEventListener("click", () => {
+        runAnalysis();
+      });
+
+      companySelector.addEventListener("change", () => {
+        renderBalance();
+        renderPeTrend();
+      });
+
+      document.addEventListener("click", (event) => {
+        const target = event.target;
+        if (target === searchInput || suggestList.contains(target)) {
+          return;
+        }
+        hideSuggestions();
+      });
+    }
+
+    async function bootstrap() {
+      bindInputEvents();
+      bindSortEvents();
+      renderSelectedTags();
+      renderRelationTable([]);
+      buildCompanySelector();
+
+      const ready = await ensureEcharts();
+      if (!ready || !initCharts()) {
+        const msg = "图表库加载失败（CDN 不可达），当前仅展示关系表。请联网后刷新，或切换可用网络环境。";
+        renderChartFallback("revenueMarketChart", msg);
+        renderChartFallback("balanceChart", msg);
+        renderChartFallback("peChart", msg);
+        setStatus(msg, true);
+        return;
+      }
+
+      chartsReady = true;
+      renderChartFallback("revenueMarketChart", "请先添加企业并点击“开始分析”。");
+      renderChartFallback("balanceChart", "请先添加企业并点击“开始分析”。");
+      renderChartFallback("peChart", "请先添加企业并点击“开始分析”。");
+
+      window.addEventListener("resize", () => {
+        if (revenueMarketChart) revenueMarketChart.resize();
+        if (balanceChart) balanceChart.resize();
+        if (peChart) peChart.resize();
+      });
+
+      const prefill = new URLSearchParams(window.location.search).get("symbols") || "";
+      if (prefill.trim()) {
+        prefill
+          .split(",")
+          .map((item) => normalizeCodeMaybe(item))
+          .filter((item) => !!item)
+          .forEach((code) => addSelectedCompany({ name: code, code }));
+      }
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>

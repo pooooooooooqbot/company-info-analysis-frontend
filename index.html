@@ -469,6 +469,7 @@
   </div>
 
   <script>
+    const DEFAULT_API_BASE = "https://company-info-analysis.colde.dpdns.org";
     const API_BASE = resolveApiBase();
 
     function normalizeApiBase(value) {
@@ -486,7 +487,7 @@
       const metaApiBase = normalizeApiBase(meta ? meta.getAttribute("content") : "");
       if (metaApiBase) return metaApiBase;
 
-      return "";
+      return DEFAULT_API_BASE;
     }
 
     const balanceLabels = {

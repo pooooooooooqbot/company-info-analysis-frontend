@@ -452,12 +452,12 @@
               <tr>
                 <th>公司名称</th>
                 <th>报告期</th>
+                <th class="sortable" data-key="realtime_market_cap">实时市值</th>
                 <th class="sortable" data-key="market_cap">公司市值</th>
                 <th class="sortable" data-key="total_revenue">业绩规模</th>
                 <th class="sortable" data-key="net_profit">利润规模</th>
                 <th class="sortable" data-key="pe_ttm">市盈率</th>
                 <th class="sortable" data-key="roe">ROE（估算）</th>
-                <th>核验状态</th>
                 <th>所属行业</th>
               </tr>
             </thead>
@@ -973,6 +973,17 @@
         const fallbackMarketCap = latestValuationMetric(payload && payload.valuation_daily, "market_cap");
         const fallbackPe = latestValuationMetric(payload && payload.valuation_daily, "pe_ttm");
         const fallbackRoe = latestOverviewMetric(overviewByFrequency, "roe");
+        const realtimeMarketCapFromApi = num(meta.realtime_market_cap);
+        const latestPrice =
+          num(meta.latest_price) ??
+          num(meta.latest_price_hkd) ??
+          num(payload && payload.latest_price);
+        const totalShares =
+          num(meta.total_shares) ??
+          num(meta.total_share_capital) ??
+          num(payload && payload.total_shares);
+        const realtimeMarketCapComputed =
+          latestPrice !== null && totalShares !== null ? latestPrice * totalShares : null;
 
         const roeValue = overviewLatest ? (num(overviewLatest.roe) ?? fallbackRoe) : fallbackRoe;
 
@@ -981,12 +992,15 @@
           company_name: meta.company_name || symbol,
           report_date: reportDate,
           industry: meta.industry || null,
+          realtime_market_cap:
+            realtimeMarketCapFromApi ??
+            realtimeMarketCapComputed ??
+            (overviewLatest ? (num(overviewLatest.market_cap) ?? fallbackMarketCap) : fallbackMarketCap),
           market_cap: overviewLatest ? (num(overviewLatest.market_cap) ?? fallbackMarketCap) : fallbackMarketCap,
           total_revenue: overviewLatest ? overviewLatest.total_revenue : null,
           net_profit: overviewLatest ? overviewLatest.net_profit : null,
           pe_ttm: overviewLatest ? (num(overviewLatest.pe_ttm) ?? fallbackPe) : fallbackPe,
           roe: roeValue,
-          verification_status: roeValue === null ? "营收/净利已核验，ROE缺失" : "营收/净利已核验，ROE为估算",
         });
 
         normalizedCompanies.push({
@@ -1771,12 +1785,12 @@
         const tr = document.createElement("tr");
         appendCell(tr, row.company_name || row.symbol || "-");
         appendCell(tr, row.report_date || "-");
+        appendCell(tr, fmt(row.realtime_market_cap));
         appendCell(tr, fmt(row.market_cap));
         appendCell(tr, fmt(row.total_revenue));
         appendCell(tr, fmt(row.net_profit));
         appendCell(tr, fmt(row.pe_ttm));
         appendCell(tr, fmtPercent(row.roe));
-        appendCell(tr, row.verification_status || "未核验");
         appendCell(tr, row.industry || "-");
         tbody.appendChild(tr);
       });

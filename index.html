@@ -994,8 +994,7 @@
           industry: meta.industry || null,
           realtime_market_cap:
             realtimeMarketCapFromApi ??
-            realtimeMarketCapComputed ??
-            (overviewLatest ? (num(overviewLatest.market_cap) ?? fallbackMarketCap) : fallbackMarketCap),
+            realtimeMarketCapComputed,
           market_cap: overviewLatest ? (num(overviewLatest.market_cap) ?? fallbackMarketCap) : fallbackMarketCap,
           total_revenue: overviewLatest ? overviewLatest.total_revenue : null,
           net_profit: overviewLatest ? overviewLatest.net_profit : null,
